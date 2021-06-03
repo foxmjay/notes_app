@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard</title>
+
+<link rel="stylesheet" href="/static/css/bootstrap.min.css">
+<link rel="stylesheet" href="/static/css/style.css">
+
+<link rel="stylesheet" href="/static/css/googlefonts.css">
+<link rel="stylesheet" href="/static/css/font-awesome/h5p-font-awesome.min.css">
+
+
+</head>
+<body>
+    <div class="container" id="app">
+
+        <nav class="navbar navbar-inverse">
+            <div class="container-fluid">
+                <div class="navbar-header">
+                <a class="navbar-brand" href="/dashboard">
+                    <p> <i class="fa fa-1x fa-user"  ></i> {{ username }}</p>
+                </a>
+                </div>
+                <a href="/logout" class="btn btn-default navbar-btn pull-right">Logout</a>
+            </div>
+            
+        </nav>
+
+        <div class="table-wrapper">
+            <div class="table-title">
+                <div class="row">
+                    <div class="col-sm-8"><h2> <b>Notes</b></h2></div>
+                    <div class="col-sm-4">
+                        <button type="button" class="btn btn-info add-new" v-on:click="new_note()" ><i class="fa fa-plus" ></i> Add New</button>
+                    </div>
+                </div>
+            </div>
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Title</th>
+                        <th>Description</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="(note,index) in notes">
+
+                        <template v-if="edit == index">
+                            <td>{{ "{{ note['_id'] }}" }}</td>
+                            <td><input type="text" class="form-control" v-bind:class="(!note.title)?'error':''" name="title" id="title" v-model="note_buffer.title"></td>
+                            <td><input type="text" class="form-control" v-bind:class="(!note.description)?'error':''" name="description" id="description" v-model="note_buffer.description"></td>
+                            <td>
+                                <a class="add" title="Add" data-toggle="tooltip" v-on:click="update_note()" ><i class="material-icons">&#xE03B;</i></a>
+                                <a class="delete" title="Delete" data-toggle="tooltip" v-on:click="cancel_add()" ><i class="material-icons">&#xE872;</i></a>
+                            </td>
+                        </template>
+
+                        <template v-else >
+                            <td>{{ "{{ note['_id'] }}" }}</td>
+                            <td>{{ "{{ note['title'] }}" }}</td>
+                            <td>{{ "{{ note['description'] }}" }}</td>
+                            <td>
+                                <a class="edit" title="Edit" data-toggle="tooltip" v-on:click="edit_note(index)"  ><i class="material-icons">&#xE254;</i></a> 
+                                <a class="delete" title="Delete" data-toggle="tooltip" v-on:click="delete_note(note['_id'])"  ><i class="material-icons">&#xE872;</i></a>
+                            </td>  
+                        </template>                     
+                    </tr>
+
+                    <tr v-if="new_row">
+                        <td></td>
+                        <td><input type="text" class="form-control" v-bind:class="(!note_buffer.title)?'error':''" name="title" id="title" v-model="note_buffer.title"></td>
+                        <td><input type="text" class="form-control" v-bind:class="(!note_buffer.description)?'error':''" name="description" id="description" v-model="note_buffer.description"></td>
+                        <td>
+                            <a class="add" title="Add" data-toggle="tooltip" v-on:click="add_note()" ><i class="material-icons">&#xE03B;</i></a>
+                            <a class="delete" title="Delete" data-toggle="tooltip" v-on:click="cancel_add()" ><i class="material-icons">&#xE872;</i></a>
+                        </td>
+                    </tr>
+                    
+                </tbody>
+            </table>
+        </div>
+    </div>     
+</body>
+
+<script src="/static/js/jquery-2.2.4.min.js"></script>
+<script src="/static/js/bootstrap.min.js"></script> 
+<script src="/static/js/vue2.js"></script>
+<script src="/static/js/axios.min.js"></script>
+
+<script>
+
+  $(document).ready(function(){
+
+    var vue = new Vue({
+            el : "#app",
+            data: {
+                notes : [],
+                note_buffer:{title:"",description:""},
+                new_row:0,
+                edit:-1,
+            },
+            mounted: function() {
+                this.get_list()
+            },
+            methods: {
+                new_note: function(){
+                    this.new_row = 1;
+                },
+
+                get_list: function(){
+                    var _this = this;
+                    axios.get('/api/listnotes?TOKEN={{ token }}&USERID={{user_id}}')
+                    .then(function (response) {
+                        _this.notes = response.data['notes'];
+                    })
+                    .catch(function (error) { console.log(error);});
+                },
+                add_note: function(){
+                    var _this = this;
+                    if(!_this.note_buffer.title || !_this.note_buffer.description){   
+                        return
+                    }
+                    const data = JSON.stringify(_this.note_buffer);
+                    
+                    axios.post('/api/addnote?TOKEN={{ token }}&USERID={{user_id}}', data, {
+                        headers: {'Content-Type': 'application/json'}})
+                    .then(function (response) {
+                        _this.note_buffer={title:"",description:""}
+                        _this.new_row = 0;
+                        _this.get_list();  
+                    }).catch(function (error) { console.log(error);});
+    
+                },
+                edit_note: function(index){
+                    var _this = this;
+                    _this.edit=index;
+                    _this.note_buffer=_this.notes[index];
+                    
+                },
+    
+                update_note: function(){
+                    var _this = this
+                    const data = JSON.stringify(_this.note_buffer);
+                    axios.post('/api/updatenote?TOKEN={{ token }}&USERID={{user_id}}', data, {
+                        headers: {'Content-Type': 'application/json'}})
+                    .then(function (response) {
+                        _this.get_list();
+                        _this.note_buffer={_id:0,title:"",description:""}
+                        _this.edit=-1;
+                        }).catch(function (error) { console.log(error);});
+                },
+
+                delete_note: function(id){
+                    var _this = this
+                    const data = JSON.stringify({"id": id});
+                    axios.post('/api/deletenote?TOKEN={{ token }}&USERID={{user_id}}', data, {
+                        headers: {'Content-Type': 'application/json'}})
+                    .then(function (response) {
+                        console.log(response.data);
+                        _this.get_list();
+                    })
+                    .catch(function (error) { console.log(error);});
+                },
+                cancel_add: function(){
+                    this.new_row=0;
+                }
+            }    
+        });
+  });
+</script>
+
+</html>
